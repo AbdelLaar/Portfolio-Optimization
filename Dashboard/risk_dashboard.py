@@ -343,7 +343,7 @@ with tabs[1]:
         v99k  = r99[0.99]["h_var"] / 1e3
         v95k  = r99[0.95]["h_var"] / 1e3
         counts, edges = np.histogram(pnl_k, bins=55)
-        bar_colors = [COLORS["acc3"] if e < v99k else (COLORS["acc2"]+"cc" if e < 0 else COLORS["acc4"]+"99")
+        bar_colors = [COLORS["acc3"] if e < v99k else ("rgba(240,165,0,0.80)" if e < 0 else "rgba(91,141,238,0.60)")
                       for e in edges[:-1]]
         fig_h.add_trace(go.Bar(x=edges[:-1], y=counts, marker_color=bar_colors,
                                marker_line_width=0, name="P&L frequency"))
@@ -413,7 +413,7 @@ with tabs[2]:
         # P&L vs VaR
         breach_mask = bt_pnl < rv99
         fig_bt = go.Figure()
-        bar_cols = [COLORS["acc3"] if b else (COLORS["acc"]+"bb" if p >= 0 else COLORS["acc2"]+"88")
+        bar_cols = [COLORS["acc3"] if b else ("rgba(0,212,160,0.73)" if p >= 0 else "rgba(240,165,0,0.53)")
                     for b, p in zip(breach_mask, bt_pnl)]
         fig_bt.add_trace(go.Bar(x=bt_dates, y=bt_pnl/1e3, marker_color=bar_cols,
                                  marker_line_width=0, name="Daily P&L"))
@@ -476,7 +476,7 @@ with tabs[3]:
     col1, col2 = st.columns(2)
     with col1:
         counts_mc, edges_mc = np.histogram(mc_pnl/1e3, bins=70)
-        bar_c = [COLORS["acc3"] if e < mc_var/1e3 else (COLORS["acc4"]+"99" if e < 0 else COLORS["acc"]+"88")
+        bar_c = [COLORS["acc3"] if e < mc_var/1e3 else ("rgba(91,141,238,0.60)" if e < 0 else "rgba(0,212,160,0.53)")
                  for e in edges_mc[:-1]]
         fig_mc = go.Figure()
         fig_mc.add_trace(go.Bar(x=edges_mc[:-1], y=counts_mc, marker_color=bar_c, marker_line_width=0))
