@@ -67,19 +67,29 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ── Plotly dark template ───────────────────────────────────────────────────────
-TMPL = go.layout.Template(
-    layout=go.Layout(
-        paper_bgcolor="#0a0c12", plot_bgcolor="#0f1118",
+# ── Colours ───────────────────────────────────────────────────────────────────
+COLORS = dict(acc="#00d4a0", acc2="#f0a500", acc3="#e8445a", acc4="#5b8dee",
+              dim="#7a8aaa", text="#e2e8f8", bg="#0a0c12", panel="#0f1118", border="#1c2035")
+
+# ── Dark theme via update_layout — works on ALL Plotly versions ────────────────
+def apply_dark(fig, title="", height=320, xtitle="", ytitle=""):
+    """Apply dark styling directly — avoids go.layout.Template version issues."""
+    fig.update_layout(
+        paper_bgcolor="#0a0c12",
+        plot_bgcolor="#0f1118",
         font=dict(family="monospace", color="#e2e8f8", size=11),
-        xaxis=dict(gridcolor="#1c2035", zerolinecolor="#1c2035", linecolor="#1c2035"),
-        yaxis=dict(gridcolor="#1c2035", zerolinecolor="#1c2035", linecolor="#1c2035"),
+        xaxis=dict(gridcolor="#1c2035", zerolinecolor="#1c2035",
+                   linecolor="#1c2035", title=xtitle),
+        yaxis=dict(gridcolor="#1c2035", zerolinecolor="#1c2035",
+                   linecolor="#1c2035", title=ytitle),
         legend=dict(bgcolor="#0f1118", bordercolor="#1c2035", borderwidth=1),
-        colorway=["#00d4a0","#f0a500","#e8445a","#5b8dee","#a78bfa","#fb923c","#34d399","#f472b6"],
+        colorway=["#00d4a0","#f0a500","#e8445a","#5b8dee",
+                  "#a78bfa","#fb923c","#34d399","#f472b6"],
         margin=dict(l=50, r=20, t=40, b=40),
+        title=dict(text=title, font=dict(color="#e2e8f8", size=12)),
+        height=height,
     )
-)
-COLORS = dict(acc="#00d4a0", acc2="#f0a500", acc3="#e8445a", acc4="#5b8dee", dim="#7a8aaa", text="#e2e8f8")
+    return fig
 
 # ── Risk functions ─────────────────────────────────────────────────────────────
 def hist_var(pnl, alpha): return np.percentile(pnl, (1-alpha)*100)
@@ -269,7 +279,7 @@ with tabs[0]:
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        fig = go.Figure(template=TMPL)
+        fig = go.Figure()
         fig.add_trace(go.Scatter(x=port_cum.index, y=port_cum.values,
             fill="tozeroy", line=dict(color=COLORS["acc"], width=1.5),
             fillcolor="rgba(0,212,160,0.08)", name=f"{port_method}"))
@@ -277,16 +287,18 @@ with tabs[0]:
         fig.add_trace(go.Scatter(x=ew_cum.index, y=ew_cum.values,
             line=dict(color=COLORS["dim"], width=1, dash="dot"), name="Equal Weight"))
         fig.update_layout(title="Cumulative Return", yaxis_title="NAV (base=1)", height=300)
+        apply_dark(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        fig_w = go.Figure(template=TMPL)
+        fig_w = go.Figure()
         fig_w.add_trace(go.Bar(x=selected, y=weights*100,
             marker_color=[COLORS["acc"] if w > 0.15 else COLORS["acc4"] if w > 0.08 else COLORS["dim"] for w in weights],
             text=[f"{w:.1%}" for w in weights], textposition="outside",
             textfont=dict(size=9, color=COLORS["text"])))
         fig_w.update_layout(title="Portfolio Weights (%)", height=300,
                             yaxis_title="Weight (%)", xaxis_tickangle=-30)
+        apply_dark(fig_w)
         st.plotly_chart(fig_w, use_container_width=True)
 
     # Risk attribution table
@@ -309,6 +321,7 @@ with tabs[0]:
     fig_c.update_layout(title="Asset Correlation Matrix", height=380,
                         paper_bgcolor="#0a0c12", plot_bgcolor="#0f1118",
                         font=dict(family="monospace", color="#e2e8f8"))
+    apply_dark(fig_c)
     st.plotly_chart(fig_c, use_container_width=True)
 
 # ═══ TAB 2: VAR ANALYSIS ══════════════════════════════════════════════════════
@@ -325,7 +338,7 @@ with tabs[1]:
     col1, col2 = st.columns(2)
 
     with col1:
-        fig_h = go.Figure(template=TMPL)
+        fig_h = go.Figure()
         pnl_k = pnl_series / 1e3
         v99k  = r99[0.99]["h_var"] / 1e3
         v95k  = r99[0.95]["h_var"] / 1e3
@@ -339,12 +352,13 @@ with tabs[1]:
         fig_h.add_vline(x=v95k, line_color=COLORS["acc2"], line_dash="dot",
                         annotation_text=f"VaR 95%", annotation_font_color=COLORS["acc2"])
         fig_h.update_layout(title="Daily P&L Distribution (Historical)", xaxis_title="P&L ($K)", height=320)
+        apply_dark(fig_h)
         st.plotly_chart(fig_h, use_container_width=True)
 
     with col2:
         # VaR method comparison
         methods = ["Hist VaR", "Param VaR", "MC VaR", "CVaR"]
-        fig_comp = go.Figure(template=TMPL)
+        fig_comp = go.Figure()
         for ai, (a_label, a_val) in enumerate([(f"90%",0.90),(f"95%",0.95),(f"99%",0.99)]):
             rd = r99[a_val]
             vals = [abs(rd["h_var"]), abs(rd["p_var"]), abs(rd["m_var"]), abs(rd["h_es"])]
@@ -352,11 +366,12 @@ with tabs[1]:
                                       marker_color=[COLORS["acc"], COLORS["acc2"], COLORS["acc3"]][ai]))
         fig_comp.update_layout(barmode="group", title="VaR Method Comparison ($K)",
                                yaxis_title="Loss ($K)", height=320)
+        apply_dark(fig_comp)
         st.plotly_chart(fig_comp, use_container_width=True)
 
     # Horizon scaling
     horizons = [1, 2, 3, 5, 10, 15, 20]
-    fig_hor = go.Figure(template=TMPL)
+    fig_hor = go.Figure()
     for a_val, col in [(0.99, COLORS["acc3"]), (0.95, COLORS["acc2"])]:
         v = abs(r99[a_val]["h_var"])
         e = abs(r99[a_val]["h_es"])
@@ -367,17 +382,19 @@ with tabs[1]:
             line=dict(color=col, width=1.5, dash="dot")))
     fig_hor.update_layout(title="VaR / CVaR Scaling by Horizon (√t rule)",
                           xaxis_title="Horizon (days)", yaxis_title="Loss ($K)", height=300)
+    apply_dark(fig_hor)
     st.plotly_chart(fig_hor, use_container_width=True)
 
     # Rolling VaR
     if bt_pnl is not None:
-        fig_rv = go.Figure(template=TMPL)
+        fig_rv = go.Figure()
         fig_rv.add_trace(go.Scatter(x=bt_dates, y=rv99/1e3, name="Rolling VaR 99%",
                                     line=dict(color=COLORS["acc3"], width=1.5)))
         fig_rv.add_trace(go.Scatter(x=bt_dates, y=rv95/1e3, name="Rolling VaR 95%",
                                     line=dict(color=COLORS["acc2"], width=1.2, dash="dot")))
         fig_rv.update_layout(title=f"Rolling {bt_window}-Day VaR",
                              yaxis_title="VaR ($K)", height=280)
+        apply_dark(fig_rv)
         st.plotly_chart(fig_rv, use_container_width=True)
 
 # ═══ TAB 3: BACKTESTING ═══════════════════════════════════════════════════════
@@ -395,7 +412,7 @@ with tabs[2]:
 
         # P&L vs VaR
         breach_mask = bt_pnl < rv99
-        fig_bt = go.Figure(template=TMPL)
+        fig_bt = go.Figure()
         bar_cols = [COLORS["acc3"] if b else (COLORS["acc"]+"bb" if p >= 0 else COLORS["acc2"]+"88")
                     for b, p in zip(breach_mask, bt_pnl)]
         fig_bt.add_trace(go.Bar(x=bt_dates, y=bt_pnl/1e3, marker_color=bar_cols,
@@ -408,13 +425,14 @@ with tabs[2]:
                                      name=f"Breaches ({br99})"))
         fig_bt.update_layout(title=f"P&L vs Rolling VaR Limit — {bt_window}-Day Window",
                               yaxis_title="P&L ($K)", height=360)
+        apply_dark(fig_bt)
         st.plotly_chart(fig_bt, use_container_width=True)
 
         col1, col2 = st.columns(2)
         with col1:
             # Kupiec χ² chart
             x_lr = np.linspace(0, 12, 400)
-            fig_k = go.Figure(template=TMPL)
+            fig_k = go.Figure()
             fig_k.add_trace(go.Scatter(x=x_lr, y=stats.chi2.pdf(x_lr, 1),
                                         line=dict(color=COLORS["text"], width=1.5), name="χ²(1)"))
             fig_k.add_vrect(x0=3.841, x1=12, fillcolor=COLORS["acc3"], opacity=0.15,
@@ -424,6 +442,7 @@ with tabs[2]:
             fig_k.add_vline(x=lr99, line_color=COLORS["acc2"], line_width=2,
                              annotation_text=f"LR={lr99:.3f}", annotation_font_color=COLORS["acc2"])
             fig_k.update_layout(title="Kupiec POF Test (χ² distribution, df=1)", height=300)
+            apply_dark(fig_k)
             st.plotly_chart(fig_k, use_container_width=True)
 
         with col2:
@@ -459,7 +478,7 @@ with tabs[3]:
         counts_mc, edges_mc = np.histogram(mc_pnl/1e3, bins=70)
         bar_c = [COLORS["acc3"] if e < mc_var/1e3 else (COLORS["acc4"]+"99" if e < 0 else COLORS["acc"]+"88")
                  for e in edges_mc[:-1]]
-        fig_mc = go.Figure(template=TMPL)
+        fig_mc = go.Figure()
         fig_mc.add_trace(go.Bar(x=edges_mc[:-1], y=counts_mc, marker_color=bar_c, marker_line_width=0))
         fig_mc.add_vline(x=mc_var/1e3, line_color=COLORS["acc3"], line_dash="dash",
                           annotation_text=f"MC VaR 99%")
@@ -467,12 +486,13 @@ with tabs[3]:
                           annotation_text="MC CVaR")
         fig_mc.update_layout(title="Monte Carlo P&L Distribution (20K paths)",
                               xaxis_title="P&L ($K)", height=340)
+        apply_dark(fig_mc)
         st.plotly_chart(fig_mc, use_container_width=True)
 
     with col2:
         pcts = [0.5, 1, 2.5, 5, 10, 25, 50, 75, 90]
         vals = [abs(np.percentile(mc_pnl, p)) for p in pcts]
-        fig_pct = go.Figure(template=TMPL)
+        fig_pct = go.Figure()
         fig_pct.add_trace(go.Bar(
             x=[f"P{p}" for p in pcts], y=[v/1e3 for v in vals],
             marker_color=[COLORS["acc3"] if p<=1 else (COLORS["acc2"] if p<=5 else COLORS["acc4"]) for p in pcts],
@@ -480,6 +500,7 @@ with tabs[3]:
             textfont=dict(size=9, color=COLORS["text"])
         ))
         fig_pct.update_layout(title="P&L Percentile Ladder (MC)", yaxis_title="Loss ($K)", height=340)
+        apply_dark(fig_pct)
         st.plotly_chart(fig_pct, use_container_width=True)
 
 # ═══ TAB 5: SENSITIVITY ════════════════════════════════════════════════════════
@@ -502,7 +523,7 @@ with tabs[4]:
     with col1:
         shk = np.linspace(-0.50, 0.30, 200)
         sweep = np.array([weights @ (betas * s) * nav / 1e3 for s in shk])
-        fig_sw = go.Figure(template=TMPL)
+        fig_sw = go.Figure()
         fig_sw.add_traces([
             go.Scatter(x=shk[sweep<0]*100, y=sweep[sweep<0], fill="tozeroy",
                        fillcolor="rgba(232,68,90,0.12)", line=dict(color="rgba(0,0,0,0)"), showlegend=False),
@@ -517,11 +538,12 @@ with tabs[4]:
                 marker=dict(size=9, color=COLORS["acc3"] if s<0 else COLORS["acc"])))
         fig_sw.update_layout(title="Portfolio Sensitivity to Market Shock",
                               xaxis_title="Shock (%)", yaxis_title="P&L ($K)", height=340)
+        apply_dark(fig_sw)
         st.plotly_chart(fig_sw, use_container_width=True)
 
     with col2:
         asset_impacts = weights * betas * shock * nav / 1e3
-        fig_ai = go.Figure(template=TMPL)
+        fig_ai = go.Figure()
         fig_ai.add_trace(go.Bar(
             x=selected, y=asset_impacts,
             marker_color=[COLORS["acc3"] if v < 0 else COLORS["acc"] for v in asset_impacts],
@@ -530,6 +552,7 @@ with tabs[4]:
         ))
         fig_ai.update_layout(title=f"Per-Asset P&L at {shock_pct:+.0f}% Shock",
                               yaxis_title="P&L ($K)", height=340, xaxis_tickangle=-30)
+        apply_dark(fig_ai)
         st.plotly_chart(fig_ai, use_container_width=True)
 
     # Stress scenario table
@@ -559,5 +582,4 @@ st.markdown("---")
 st.markdown("""<p style='color:#4a5270;font-size:10px;font-family:monospace;text-align:center'>
   ◈ MARKET RISK ANALYTICS · INTERNAL USE ONLY · NOT FOR DISTRIBUTION<br>
   Models: Historical Simulation · Parametric (Normal) · Monte Carlo (Correlated GBM) · Kupiec POF Backtest · Basel Traffic Light
-
 </p>""", unsafe_allow_html=True)
