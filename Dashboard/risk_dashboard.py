@@ -68,7 +68,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Plotly dark template ───────────────────────────────────────────────────────
-TMPL = dict(
+TMPL = go.layout.Template(
     layout=go.Layout(
         paper_bgcolor="#0a0c12", plot_bgcolor="#0f1118",
         font=dict(family="monospace", color="#e2e8f8", size=11),
@@ -559,4 +559,5 @@ st.markdown("---")
 st.markdown("""<p style='color:#4a5270;font-size:10px;font-family:monospace;text-align:center'>
   ◈ MARKET RISK ANALYTICS · INTERNAL USE ONLY · NOT FOR DISTRIBUTION<br>
   Models: Historical Simulation · Parametric (Normal) · Monte Carlo (Correlated GBM) · Kupiec POF Backtest · Basel Traffic Light
+
 </p>""", unsafe_allow_html=True)
