@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 
 from scipy.stats import norm
 from scipy.optimize import brentq
+from scipy.integrate import cumulative_trapezoid, cumulative_simpson
 import math
+
+from typing import Callable
 
 
 def inthelog(T, C = 0.7, r = 0.05):
@@ -155,7 +158,7 @@ def split_3dfs_into_4dfs_var_avar_lel(df_var: pd.DataFrame,
                                       df_avar: pd.DataFrame,
                                       df_lel: pd.DataFrame,
                                       *,
-                                      col_names=("var", "avar", "lel"))
+                                      col_names=("var", "avar", "lel")):
     if not (df_var.index.equals(df_avar.index) and df_var.index.equals(df_lel.index)):
         raise ValueError("Input DataFrames must have the same index (same rows/order).")
 
@@ -182,7 +185,7 @@ def expected_wealth(eps, X0, r, T, B_df, covariance):
     return X0 * np.exp(r * T) * np.exp(eps * theta)
 
 
-def plot_theta(df, covariance, time = 8, n = 10000):
+def plot_theta(df, covariance, time = 8, n = 10000, time_dep: bool = False):
     t = np.linspace(0.0, time, n)
     theta_plot = [theta_norm_from_df(df, ti, covariance) for ti in t]
 
@@ -209,3 +212,75 @@ def plot_helper(df: pd.DataFrame, T: float = 8.0, *, xlabel="time in years", yla
     ax.grid(True, alpha=0.3)
     ax.legend()
     plt.tight_layout()
+
+
+#######
+## time variable
+#######
+
+def vol_matrix_t(
+    t: float | np.ndarray,
+    vt_func: Callable[[float | np.ndarray], np.ndarray],
+    rhot: np.ndarray,
+) -> np.ndarray:
+
+    rhot = np.asarray(rhot, dtype=float)
+    if np.ndim(t) == 0:
+        V = np.asarray(vt_func(float(t)), dtype=float)
+        return V @ rhot @ V
+    return [vol_matrix_t(float(ti), vt_func, rhot) for ti in np.asarray(t)]
+
+
+
+def theta_norm_td(B_df, T, vt_func, rhot):
+
+    if T == 0:
+        return 0.0
+    B = B_df.to_numpy(dtype=float)
+    n, d = B.shape
+    t = np.linspace(0.0, T, n)
+    rhot = np.asarray(rhot, dtype=float)
+
+    integrand = np.empty(n, dtype=float)
+    for i in range(n):
+        V_i = np.asarray(vt_func(t[i]), dtype=float)
+        Sigma_i = V_i @ rhot @ V_i
+        b_i = B[i]
+        integrand[i] = b_i @ np.linalg.solve(Sigma_i, b_i)
+
+    cum = cumulative_trapezoid(integrand, t, initial=0)
+    # cum = cumulative_simpson(integrand, x = t, initial=0)
+
+    return t, np.sqrt(cum)
+
+
+def opt_strategy_td(
+    eps_star: float,
+    theta_norm_T: float,
+    vt_func: Callable[[float], np.ndarray],
+    rhot: np.ndarray,
+    B_df: pd.DataFrame,
+    T: float,
+) -> pd.DataFrame:
+    
+    if theta_norm_T == 0:
+        raise ZeroDivisionError("theta_norm_T is 0; cannot divide by ‖Θ‖_T.")
+
+    B = B_df.to_numpy(dtype=float)
+    n, d = B.shape
+    t = np.linspace(0.0, float(T), n)
+    rhot = np.asarray(rhot, dtype=float)
+    scale = eps_star / theta_norm_T
+
+    out = np.empty_like(B)
+    for i in range(n):
+        V_i = np.asarray(vt_func(t[i]), dtype=float)
+        Sigma_i = V_i @ rhot @ V_i
+        out[i] = scale * np.linalg.solve(Sigma_i, B[i])
+
+    return pd.DataFrame(out, index=B_df.index, columns=B_df.columns)
+
+
+def expected_wealth_td(eps, X0, r, B_df, T, vt_func, rhot):
+    t, theta = theta_norm_td(B_df, T, vt_func, rhot)
+    return X0 * np.exp(r * t) * np.exp(eps * theta)
