@@ -1,6 +1,7 @@
 # Portfolio-Optimization
 
-A continuous version with time dependent volatility is under construction and will be soon uploaded
+A continuous version with time dependent volatility has been added.
+Next step will be parameter estimation from historical data, and eventually, stochastification of assets.
 
 
 # Dashboard
